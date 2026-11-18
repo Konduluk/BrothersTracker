@@ -17,11 +17,13 @@ DATA_DIR = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'BrothersTra
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB = DATA_DIR / 'history.sqlite3'
 
+
 class Tracker:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title('Brothers Tracker · v0.2')
-        self.root.geometry('980x640')
+        self.root.title('Brothers Tracker · v0.3')
+        self.root.geometry('1100x740')
+        self.root.minsize(920, 610)
         self.messages = queue.Queue()
         self.running = False
         self.busy = False
@@ -43,57 +45,123 @@ class Tracker:
             c.execute('CREATE TABLE IF NOT EXISTS readings (scan_id INTEGER, name TEXT, glory INTEGER, PRIMARY KEY(scan_id,name))')
             c.execute('CREATE TABLE IF NOT EXISTS contests (id INTEGER PRIMARY KEY, name TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL)')
 
+    def setup_theme(self):
+        self.bg = '#101318'
+        self.panel = '#1A2029'
+        self.panel_alt = '#26303C'
+        self.gold = '#D9B66E'
+        self.text = '#F4F2ED'
+        self.muted = '#ADB4C0'
+        self.root.configure(bg=self.bg)
+        style = ttk.Style(self.root)
+        style.theme_use('clam')
+        style.configure('.', font=('Segoe UI', 10), background=self.bg, foreground=self.text)
+        style.configure('TFrame', background=self.bg)
+        style.configure('Panel.TFrame', background=self.panel)
+        style.configure('TLabel', background=self.bg, foreground=self.text)
+        style.configure('Muted.TLabel', background=self.bg, foreground=self.muted)
+        style.configure('Panel.TLabel', background=self.panel, foreground=self.text)
+        style.configure('PanelMuted.TLabel', background=self.panel, foreground=self.muted)
+        style.configure('Title.TLabel', font=('Segoe UI', 23, 'bold'), foreground=self.gold)
+        style.configure('Section.TLabel', font=('Segoe UI', 13, 'bold'))
+        style.configure('Value.TLabel', background=self.panel, foreground=self.gold, font=('Segoe UI', 23, 'bold'))
+        style.configure('TButton', background=self.panel_alt, foreground=self.text, padding=(14, 9), borderwidth=0)
+        style.map('TButton', background=[('active', '#374353'), ('pressed', '#465366')], foreground=[('disabled', self.muted)])
+        style.configure('Gold.TButton', background=self.gold, foreground='#171A20', font=('Segoe UI', 10, 'bold'))
+        style.map('Gold.TButton', background=[('active', '#EAC986'), ('pressed', '#C19A50')])
+        style.configure('TEntry', fieldbackground=self.panel_alt, foreground=self.text, insertcolor=self.gold,
+                        bordercolor='#455263', padding=7)
+        style.configure('TSpinbox', fieldbackground=self.panel_alt, foreground=self.text, arrowcolor=self.gold,
+                        bordercolor='#455263', padding=4)
+        style.configure('TNotebook', background=self.bg, borderwidth=0, tabmargins=(0, 8, 0, 0))
+        style.configure('TNotebook.Tab', background=self.panel, foreground=self.muted,
+                        padding=(23, 12), borderwidth=0, font=('Segoe UI', 10, 'bold'))
+        style.map('TNotebook.Tab', background=[('selected', self.panel_alt), ('active', '#303B49')],
+                  foreground=[('selected', self.gold), ('active', self.text)])
+        style.configure('Treeview', background=self.panel, fieldbackground=self.panel, foreground=self.text,
+                        rowheight=34, borderwidth=0)
+        style.map('Treeview', background=[('selected', '#6F5630')], foreground=[('selected', '#FFFFFF')])
+        style.configure('Treeview.Heading', background=self.panel_alt, foreground=self.gold,
+                        font=('Segoe UI', 10, 'bold'), padding=(10, 10), relief='flat')
+        style.map('Treeview.Heading', background=[('active', '#364457')])
+
     def make_ui(self):
-        tabs = ttk.Notebook(self.root)
-        tabs.pack(fill='both', expand=True)
-        monitor = ttk.Frame(tabs)
-        rating = ttk.Frame(tabs)
-        contests = ttk.Frame(tabs)
-        tabs.add(monitor, text='Мониторинг')
-        tabs.add(rating, text='Рейтинг славы')
-        tabs.add(contests, text='Конкурсы')
-        top = ttk.Frame(monitor, padding=12)
-        top.pack(fill='x')
-        ttk.Label(top, text='Brothers Tracker', font=('Segoe UI', 19, 'bold')).pack(anchor='w')
-        ttk.Label(top, text='Подключение к одной заранее открытой вкладке Chrome/Edge (127.0.0.1:9222)').pack(anchor='w')
-        controls = ttk.Frame(top)
-        controls.pack(fill='x', pady=10)
-        ttk.Button(controls, text='Считать сейчас', command=self.scan).pack(side='left', padx=3)
-        ttk.Button(controls, text='Начать мониторинг', command=self.start).pack(side='left', padx=3)
-        ttk.Button(controls, text='Остановить', command=self.stop).pack(side='left', padx=3)
-        ttk.Label(controls, text='Интервал, мин:').pack(side='left', padx=(16, 4))
-        ttk.Spinbox(controls, from_=5, to=1440, textvariable=self.interval_min, width=4).pack(side='left')
-        ttk.Label(controls, text='—').pack(side='left')
-        ttk.Spinbox(controls, from_=5, to=1440, textvariable=self.interval_max, width=4).pack(side='left')
-        ttk.Label(top, textvariable=self.status, wraplength=800).pack(anchor='w')
-        cols = ('name','glory','gain')
+        self.setup_theme()
+        outer = ttk.Frame(self.root, padding=(20, 14))
+        outer.pack(fill='both', expand=True)
+        brand = ttk.Frame(outer)
+        brand.pack(fill='x', pady=(0, 10))
+        ttk.Label(brand, text='BROTHERS  /  TRACKER', style='Title.TLabel').pack(side='left')
+        ttk.Label(brand, text='𝕭𝖗𝖔𝖙𝖍𝖊𝖗𝖘    •    v0.3  DARK GOLD', style='Muted.TLabel').pack(side='right', pady=13)
+
+        self.tabs = ttk.Notebook(outer)
+        self.tabs.pack(fill='both', expand=True)
+        monitor = ttk.Frame(self.tabs, padding=(0, 14))
+        rating = ttk.Frame(self.tabs, padding=(0, 14))
+        contests = ttk.Frame(self.tabs, padding=(0, 14))
+        self.tabs.add(monitor, text='  МОНИТОРИНГ  ')
+        self.tabs.add(rating, text='  РЕЙТИНГ СЛАВЫ  ')
+        self.tabs.add(contests, text='  КОНКУРСЫ  ')
+
+        stats = ttk.Frame(monitor)
+        stats.pack(fill='x', pady=(0, 16))
+        self.stat_members = tk.StringVar(value='—')
+        self.stat_glory = tk.StringVar(value='—')
+        self.stat_scans = tk.StringVar(value='—')
+        for col, (caption, variable) in enumerate((
+            ('УЧАСТНИКОВ', self.stat_members),
+            ('ОБЩАЯ СЛАВА', self.stat_glory),
+            ('СОХРАНЕНО ЗАМЕРОВ', self.stat_scans),
+        )):
+            stats.columnconfigure(col, weight=1, uniform='stats')
+            tile = ttk.Frame(stats, style='Panel.TFrame', padding=17)
+            tile.grid(row=0, column=col, sticky='ew', padx=(0, 9) if col < 2 else 0)
+            ttk.Label(tile, text=caption, style='PanelMuted.TLabel').pack(anchor='w')
+            ttk.Label(tile, textvariable=variable, style='Value.TLabel').pack(anchor='w', pady=(7, 0))
+
+        controls = ttk.Frame(monitor)
+        controls.pack(fill='x', pady=(0, 10))
+        ttk.Button(controls, text='Считать сейчас', style='Gold.TButton', command=self.scan).pack(side='left', padx=(0, 8))
+        ttk.Button(controls, text='Начать мониторинг', command=self.start).pack(side='left', padx=(0, 8))
+        ttk.Button(controls, text='Остановить', command=self.stop).pack(side='left')
+        ttk.Label(controls, text='Интервал, мин:', style='Muted.TLabel').pack(side='left', padx=(16, 5))
+        ttk.Spinbox(controls, from_=5, to=1440, textvariable=self.interval_min, width=5).pack(side='left')
+        ttk.Label(controls, text=' — ').pack(side='left')
+        ttk.Spinbox(controls, from_=5, to=1440, textvariable=self.interval_max, width=5).pack(side='left')
+        ttk.Label(monitor, textvariable=self.status, style='Muted.TLabel', wraplength=1040).pack(anchor='w', pady=(0, 14))
+        ttk.Label(monitor, text='СЛАВА БРАТСТВА', style='Section.TLabel').pack(anchor='w', pady=(0, 7))
+        cols = ('name', 'glory', 'gain')
         self.tree = ttk.Treeview(monitor, columns=cols, show='headings')
-        for col, title, width in [('name','Игрок',300),('glory','Последняя слава',180),('gain','Прирост с первого замера',220)]:
+        for col, title, width in [('name', 'Игрок', 350), ('glory', 'Последняя слава', 250),
+                                  ('gain', 'Прирост с первого замера', 320)]:
             self.tree.heading(col, text=title)
             self.tree.column(col, width=width)
-        self.tree.pack(fill='both', expand=True, padx=12, pady=12)
-        ttk.Label(monitor, text='Данные: '+str(DB), wraplength=800).pack(anchor='w', padx=12, pady=(0,8))
+        self.tree.pack(fill='both', expand=True)
+        ttk.Label(monitor, text='История: ' + str(DB), style='Muted.TLabel', wraplength=1030).pack(anchor='w', pady=(9, 0))
         self.make_rating_ui(rating)
         self.make_contest_ui(contests)
         self.refresh_table()
 
     def make_rating_ui(self, parent):
-        header = ttk.Frame(parent, padding=12)
-        header.pack(fill='x')
-        ttk.Label(header, text='С даты (ГГГГ-ММ-ДД):').pack(side='left')
-        ttk.Entry(header, textvariable=self.range_start, width=13).pack(side='left', padx=5)
-        ttk.Label(header, text='По дату:').pack(side='left')
-        ttk.Entry(header, textvariable=self.range_end, width=13).pack(side='left', padx=5)
-        ttk.Button(header, text='Рассчитать', command=self.show_ranking).pack(side='left', padx=8)
-        self.rating_info = tk.StringVar(value='Рейтинг рассчитывается по первому и последнему сохранённым замерам в выбранных датах.')
-        ttk.Label(parent, textvariable=self.rating_info, wraplength=930).pack(anchor='w', padx=12, pady=4)
-        cols = ('name','before','after','gain','note')
+        ttk.Label(parent, text='РЕЙТИНГ СЛАВЫ', style='Section.TLabel').pack(anchor='w', pady=(0, 13))
+        header = ttk.Frame(parent)
+        header.pack(fill='x', pady=(0, 12))
+        ttk.Label(header, text='С даты:', style='Muted.TLabel').pack(side='left')
+        ttk.Entry(header, textvariable=self.range_start, width=14).pack(side='left', padx=(7, 18))
+        ttk.Label(header, text='По дату:', style='Muted.TLabel').pack(side='left')
+        ttk.Entry(header, textvariable=self.range_end, width=14).pack(side='left', padx=(7, 18))
+        ttk.Button(header, text='Рассчитать рейтинг', style='Gold.TButton', command=self.show_ranking).pack(side='left')
+        self.rating_info = tk.StringVar(value='Рейтинг рассчитывается по первому и последнему сохранённым замерам в выбранном периоде.')
+        ttk.Label(parent, textvariable=self.rating_info, style='Muted.TLabel', wraplength=1030).pack(anchor='w', pady=(0, 13))
+        cols = ('name', 'before', 'after', 'gain', 'note')
         self.rating_tree = ttk.Treeview(parent, columns=cols, show='headings')
-        for key, title, width in [('name','Игрок',190),('before','Слава в начале',155),('after','Слава в конце',155),('gain','Прирост',150),('note','Статус',210)]:
-            self.rating_tree.heading(key,text=title)
-            self.rating_tree.column(key,width=width)
-        self.rating_tree.pack(fill='both',expand=True,padx=12,pady=8)
-        ttk.Label(parent, text='Если игрока нет в одном из крайних замеров, прирост не вычисляется. Промежуточные вступления не считаются нулевой славой.',wraplength=920).pack(anchor='w',padx=12,pady=6)
+        for key, title, width in [('name', 'Игрок', 210), ('before', 'Слава в начале', 165),
+                                  ('after', 'Слава в конце', 165), ('gain', 'Прирост', 160), ('note', 'Статус', 220)]:
+            self.rating_tree.heading(key, text=title)
+            self.rating_tree.column(key, width=width)
+        self.rating_tree.pack(fill='both', expand=True)
+        ttk.Label(parent, text='Если игрока нет в одном из крайних замеров, прирост не вычисляется.',
+                  style='Muted.TLabel').pack(anchor='w', pady=(10, 0))
 
     def show_ranking(self):
         try:
@@ -108,19 +176,24 @@ class Tracker:
             self.rating_tree.insert('', 'end',values=(name,fmt(before),fmt(after),'—' if gain is None else f'{gain:+,}'.replace(',',' '),note))
         self.rating_info.set(f'Замеры: {first_time} → {last_time}. Участников в отчёте: {len(rows)}.' if first_time else 'За выбранные даты замеров пока нет. История собирается только после запуска мониторинга.')
 
-    def make_contest_ui(self,parent):
-        frame=ttk.Frame(parent,padding=14)
-        frame.pack(fill='x')
-        ttk.Label(frame,text='Название конкурса:').grid(row=0,column=0,sticky='w')
-        ttk.Entry(frame,textvariable=self.contest_name,width=34).grid(row=0,column=1,padx=8,pady=5)
-        ttk.Label(frame,text='Начало и конец берутся из вкладки «Рейтинг славы».').grid(row=1,column=0,columnspan=2,sticky='w',pady=6)
-        ttk.Button(frame,text='Сохранить конкурс',command=self.save_contest).grid(row=2,column=0,pady=8,sticky='w')
-        ttk.Button(frame,text='Открыть выбранный конкурс в рейтинге',command=self.open_contest).grid(row=2,column=1,pady=8,sticky='w')
-        self.contest_tree=ttk.Treeview(parent,columns=('name','start','end'),show='headings',height=12)
-        for key,title in [('name','Конкурс'),('start','Начало'),('end','Окончание')]:
-            self.contest_tree.heading(key,text=title)
-        self.contest_tree.pack(fill='both',expand=True,padx=14,pady=8)
-        ttk.Label(parent,text='Пока вкладка хранит периоды конкурсов. Призы и итоговые места добавим после проверки рейтинга.',wraplength=920).pack(anchor='w',padx=14,pady=8)
+    def make_contest_ui(self, parent):
+        ttk.Label(parent, text='КОНКУРСЫ БРАТСТВА', style='Section.TLabel').pack(anchor='w', pady=(0, 13))
+        frame = ttk.Frame(parent)
+        frame.pack(fill='x', pady=(0, 15))
+        ttk.Label(frame, text='Название конкурса:', style='Muted.TLabel').grid(row=0, column=0, sticky='w')
+        ttk.Entry(frame, textvariable=self.contest_name, width=38).grid(row=0, column=1, padx=10, pady=6, sticky='w')
+        ttk.Label(frame, text='Начало и конец берутся из вкладки «Рейтинг славы».',
+                  style='Muted.TLabel').grid(row=1, column=0, columnspan=2, sticky='w', pady=8)
+        ttk.Button(frame, text='Сохранить конкурс', style='Gold.TButton', command=self.save_contest).grid(
+            row=2, column=0, sticky='w', pady=(2, 0))
+        ttk.Button(frame, text='Открыть выбранный конкурс в рейтинге', command=self.open_contest).grid(
+            row=2, column=1, sticky='w', padx=10, pady=(2, 0))
+        self.contest_tree = ttk.Treeview(parent, columns=('name', 'start', 'end'), show='headings', height=12)
+        for key, title in [('name', 'Конкурс'), ('start', 'Начало'), ('end', 'Окончание')]:
+            self.contest_tree.heading(key, text=title)
+        self.contest_tree.pack(fill='both', expand=True)
+        ttk.Label(parent, text='Сейчас сохраняются периоды конкурсов. Призы и итоговые места добавим отдельно.',
+                  style='Muted.TLabel', wraplength=1000).pack(anchor='w', pady=(10, 0))
         self.refresh_contests()
 
     def refresh_contests(self):
@@ -152,7 +225,7 @@ class Tracker:
         self.range_start.set(start)
         self.range_end.set(end)
         self.show_ranking()
-        messagebox.showinfo('Конкурсы',f'Рейтинг «{name}» рассчитан. Открой вкладку «Рейтинг славы».')
+        self.tabs.select(1)
 
     def start(self):
         try:
@@ -209,8 +282,12 @@ class Tracker:
         for item in self.tree.get_children(): self.tree.delete(item)
         with sqlite3.connect(DB) as c:
             rows = c.execute('''SELECT r.name,r.glory,r.glory-(SELECT r2.glory FROM readings r2 JOIN scans s2 ON s2.id=r2.scan_id WHERE r2.name=r.name ORDER BY s2.id LIMIT 1) AS gain FROM readings r WHERE r.scan_id=(SELECT MAX(id) FROM scans) ORDER BY gain DESC, r.name''').fetchall()
+            scan_count = c.execute('SELECT COUNT(*) FROM scans').fetchone()[0]
         for name,glory,gain in rows:
             self.tree.insert('', 'end', values=(name,f'{glory:,}'.replace(',',' '),f'{gain:+,}'.replace(',',' ')))
+        self.stat_members.set(str(len(rows)))
+        self.stat_glory.set(f'{sum(glory for _, glory, _ in rows):,}'.replace(',', ' '))
+        self.stat_scans.set(f'{scan_count:,}'.replace(',', ' '))
 
     def tick(self):
         try:
