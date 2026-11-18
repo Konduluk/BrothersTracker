@@ -1,14 +1,14 @@
 """Date-range leaderboards based only on stored, observed snapshots."""
 import sqlite3
 from datetime import date
-
+from contextlib import closing
 
 def calculate_ranking(db_path, start_date, end_date):
     start = date.fromisoformat(start_date)
     end = date.fromisoformat(end_date)
     if end < start:
         raise ValueError('Дата окончания раньше даты начала.')
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         scans = conn.execute('SELECT id, time FROM scans WHERE substr(time,1,10) BETWEEN ? AND ? ORDER BY time,id', (start.isoformat(),end.isoformat())).fetchall()
         if not scans:
             return [], None, None
